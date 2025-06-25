@@ -4,11 +4,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Response;
+use Carbon\Carbon;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
+//Authentication to google calendar
 Route::get('/api/auth/google', function () {
     return Socialite::driver('google')
         ->scopes(['https://www.googleapis.com/auth/calendar'])
@@ -24,6 +27,7 @@ Route::get('/api/auth/google/callback', function () {
     return redirect('/google/calendar');
 });
 
+//Visualiza eventos de calendario
 Route::get('/google/calendar', function () {
     $token = Session::get('google_token');
 
@@ -43,8 +47,7 @@ Route::get('/google/calendar', function () {
     }
 });
 
-use Illuminate\Support\Facades\Response;
-
+//Creation of voucher of appointment
 Route::get('/google/calendar/comprobante/{eventId}', function ($eventId) {
     $token = Session::get('google_token');
 
@@ -79,7 +82,7 @@ Route::get('/google/calendar/comprobante/{eventId}', function ($eventId) {
     ]);
 });
 
-
+//Form to create a new Appointment
 Route::get('/google/calendar/create', function () {
     return '
         <form method="POST" action="/google/calendar/store">
@@ -94,6 +97,7 @@ Route::get('/google/calendar/create', function () {
 
 });
 
+//Creation of event in calendar
 
 Route::post('/google/calendar/store', function (Request $request) {
     $token = Session::get('google_token');
@@ -107,15 +111,19 @@ Route::post('/google/calendar/store', function (Request $request) {
 
     $calendarService = new \Google_Service_Calendar($client);
 
+    // Convertir fechas con zona horaria explícita
+    $start = Carbon::parse($request->start, 'America/Mexico_City')->toRfc3339String();
+    $end = Carbon::parse($request->end, 'America/Mexico_City')->toRfc3339String();
+
     $event = new \Google_Service_Calendar_Event([
         'summary'     => $request->summary,
         'description' => $request->description,
         'start' => [
-            'dateTime' => date('c', strtotime($request->start)),
+            'dateTime' => $start,
             'timeZone' => 'America/Mexico_City',
         ],
         'end' => [
-            'dateTime' => date('c', strtotime($request->end)),
+            'dateTime' => $end,
             'timeZone' => 'America/Mexico_City',
         ],
     ]);
@@ -124,4 +132,5 @@ Route::post('/google/calendar/store', function (Request $request) {
 
     return redirect('/google/calendar')->with('success', 'Evento creado con éxito.');
 });
+
 
