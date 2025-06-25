@@ -35,9 +35,50 @@ Route::get('/google/calendar', function () {
 
     echo "<h2>Eventos:</h2>";
     foreach ($events->getItems() as $event) {
-        echo $event->getSummary() . "<br>";
+        $summary = $event->getSummary();
+        $eventId = $event->getId();
+
+        echo "$summary ";
+        echo "<a href='/google/calendar/comprobante/{$eventId}'>[Descargar comprobante]</a><br>";
     }
 });
+
+use Illuminate\Support\Facades\Response;
+
+Route::get('/google/calendar/comprobante/{eventId}', function ($eventId) {
+    $token = Session::get('google_token');
+
+    if (!$token) {
+        return redirect('/api/auth/google');
+    }
+
+    $client = new \Google_Client();
+    $client->setAccessToken($token);
+
+    $calendar = new \Google_Service_Calendar($client);
+    $event = $calendar->events->get('primary', $eventId);
+
+    $summary     = $event->getSummary();
+    $description = $event->getDescription();
+    $start       = $event->getStart()->getDateTime();
+    $end         = $event->getEnd()->getDateTime();
+
+    $comprobante = "***** COMPROBANTE DE EVENTO *****\n";
+    $comprobante .= "Título: $summary\n";
+    $comprobante .= "Descripción: $description\n";
+    $comprobante .= "Inicio: $start\n";
+    $comprobante .= "Fin: $end\n";
+    $comprobante .= "Fecha de emisión: " . now() . "\n";
+    $comprobante .= "*******************************\n";
+
+    $filename = str_replace(' ', '_', $summary) . "_comprobante.txt";
+
+    return Response::make($comprobante, 200, [
+        'Content-Type' => 'text/plain',
+        'Content-Disposition' => "attachment; filename=\"$filename\""
+    ]);
+});
+
 
 Route::get('/google/calendar/create', function () {
     return '
@@ -50,6 +91,7 @@ Route::get('/google/calendar/create', function () {
             <button type="submit">Crear evento</button>
         </form>
     ';
+
 });
 
 
