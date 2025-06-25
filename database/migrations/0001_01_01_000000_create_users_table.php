@@ -10,12 +10,19 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->enum('role', ['doctor', 'patient'])->default('patient'); // puede tener default
             $table->string('name');
+            $table->string('lastname')->nullable();      // 👈 puede ser llenado después
+            $table->integer('age')->nullable();
+            $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            $table->string('address')->nullable();
+            $table->string('phonenumber')->nullable();
+            $table->date('dateofborn')->nullable();
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
