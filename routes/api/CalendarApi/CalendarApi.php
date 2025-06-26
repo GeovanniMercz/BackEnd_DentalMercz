@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 
 //Ruta para agendar una cita por medio del store
-Route::middleware('auth:api')->post('/appointment/store', function (Request $request) {
+Route::middleware('auth:api')->post('/appointment', function (Request $request) {
     $user = $request->user(); // ✅ Esto sí funciona
 
     $doctor = User::where('is_doctor', true)->first();
