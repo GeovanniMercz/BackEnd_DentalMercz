@@ -23,9 +23,6 @@ Route::get('/api/auth/google', function () {
 });
 
 
-
-
-
 Route::get('/api/auth/google/callback', function () {
     $googleUser = Socialite::driver('google')->user(); // SIN stateless()
 
@@ -55,8 +52,6 @@ Route::get('/api/auth/google/callback', function () {
 
     return redirect('/google/calendar')->with('success', 'Google Calendar vinculado correctamente.');
 });
-
-
 
 //Visualiza eventos de calendario
 Route::get('/google/calendar', function () {
@@ -131,9 +126,7 @@ Route::get('/google/calendar/create', function () {
     ';
 });
 
-
 //Creation of event in calendar
-
 Route::post('/google/calendar/store', function (Request $request) {
     $user = Auth::user(); // asegúrate de que está logueado
     if (!$user || !$user->google_token) {
