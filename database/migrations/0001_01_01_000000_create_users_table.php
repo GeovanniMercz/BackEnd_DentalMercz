@@ -10,12 +10,13 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->enum('role', ['doctor', 'patient'])->default('patient'); // puede tener default
+            $table->enum('role', ['doctor', 'patient'])->default('patient');
             $table->string('name');
-            $table->string('lastname')->nullable();      // 👈 puede ser llenado después
+            $table->string('lastname')->nullable();
             $table->integer('age')->nullable();
             $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->string('email')->unique();
+            $table->boolean('is_doctor')->default(false);  // Sin after()
             $table->string('address')->nullable();
             $table->string('phonenumber')->nullable();
             $table->date('dateofborn')->nullable();
@@ -23,7 +24,11 @@ return new class extends Migration
             $table->rememberToken();
             $table->timestamps();
             $table->softDeletes();
+            $table->text('google_token')->nullable();
+            $table->text('google_refresh_token')->nullable();
+            $table->timestamp('google_token_expires_at')->nullable();
         });
+
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();

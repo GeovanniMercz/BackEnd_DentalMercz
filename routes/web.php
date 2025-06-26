@@ -1,11 +1,14 @@
 <?php
 
+use App\Models\User\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Response;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
+
 
 Route::get('/', function () {
     return view('welcome');
@@ -18,14 +21,31 @@ Route::get('/api/auth/google', function () {
         ->redirect();
 });
 
+
 Route::get('/api/auth/google/callback', function () {
-    $user = Socialite::driver('google')->stateless()->user();
+    $googleUser = Socialite::driver('google')->stateless()->user();
 
-    Session::put('google_token', $user->token);
-    Session::put('google_refresh_token', $user->refreshToken);
+    // 🔧 SIMULA LOGIN TEMPORAL PARA PRUEBA
+    Auth::loginUsingId(1); // Solo si aún no tienes login real
 
-    return redirect('/google/calendar');
+    $user = Auth::user();
+
+    if (!$user) {
+        abort(403, 'Usuario no autenticado');
+    }
+
+    $user->google_token = $googleUser->token;
+    $user->google_refresh_token = $googleUser->refreshToken;
+    $user->google_token_expires_at = now()->addSeconds($googleUser->expiresIn);
+    $user->save();
+
+    Session::put('google_token', $googleUser->token);
+
+    return redirect('/google/calendar')->with('success', 'Google Calendar vinculado correctamente.');
+
 });
+
+
 
 //Visualiza eventos de calendario
 Route::get('/google/calendar', function () {
@@ -84,18 +104,22 @@ Route::get('/google/calendar/comprobante/{eventId}', function ($eventId) {
 
 //Form to create a new Appointment
 Route::get('/google/calendar/create', function () {
+    if (!Auth::check()) {
+        return redirect('/login'); // o donde manejes login
+    }
+
     return '
-        <form method="POST" action="/google/calendar/store">
+        <form method="POST" action="/appointment/store">
             ' . csrf_field() . '
-            <label>Título: <input type="text" name="summary"></label><br>
-            <label>Descripción: <input type="text" name="description"></label><br>
-            <label>Fecha de inicio: <input type="datetime-local" name="start"></label><br>
-            <label>Fecha de fin: <input type="datetime-local" name="end"></label><br>
-            <button type="submit">Crear evento</button>
+            <label>Título:</label><input name="summary"><br>
+            <label>Descripción:</label><input name="description"><br>
+            <label>Inicio:</label><input type="datetime-local" name="start"><br>
+            <label>Fin:</label><input type="datetime-local" name="end"><br>
+            <button type="submit">Agendar cita</button>
         </form>
     ';
-
 });
+
 
 //Creation of event in calendar
 
@@ -132,5 +156,4 @@ Route::post('/google/calendar/store', function (Request $request) {
 
     return redirect('/google/calendar')->with('success', 'Evento creado con éxito.');
 });
-
 

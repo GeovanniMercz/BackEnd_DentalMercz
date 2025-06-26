@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Request\Users\UserRequest;
+use App\Http\Requests\Users\UserRequest;
 use App\Models\User\User;
 use App\Repositories\User\UserRepository;
 use Exception;
