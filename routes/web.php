@@ -141,9 +141,14 @@ Route::post('/google/calendar/store', function (Request $request) {
 
     $calendarService = new \Google_Service_Calendar($client);
 
-    // Convertir fechas con zona horaria explícita
-    $start = Carbon::parse($request->start, 'America/Mexico_City')->toRfc3339String();
-    $end = Carbon::parse($request->end, 'America/Mexico_City')->toRfc3339String();
+    // ✅ Asegurarse que la hora no se convierta a UTC (NO usar toRfc3339String aquí)
+    $start = Carbon::parse($request->start)
+        ->setTimezone('America/Mexico_City')
+        ->format('Y-m-d\TH:i:s');
+
+    $end = Carbon::parse($request->end)
+        ->setTimezone('America/Mexico_City')
+        ->format('Y-m-d\TH:i:s');
 
     $event = new \Google_Service_Calendar_Event([
         'summary'     => $request->summary,
@@ -197,13 +202,18 @@ Route::get('/doctor/calendar', function () {
     ]);
 
     $eventList = [];
+
     foreach ($events->getItems() as $event) {
         $eventList[] = [
             'id' => $event->getId(),
             'summary' => $event->getSummary(),
             'description' => $event->getDescription(),
-            'start' => $event->getStart()->getDateTime() ?? $event->getStart()->getDate(),
-            'end' => $event->getEnd()->getDateTime() ?? $event->getEnd()->getDate(),
+            'start' => Carbon::parse($event->getStart()->getDateTime() ?? $event->getStart()->getDate())
+                ->setTimezone('America/Mexico_City')
+                ->toIso8601String(),
+            'end' => Carbon::parse($event->getEnd()->getDateTime() ?? $event->getEnd()->getDate())
+                ->setTimezone('America/Mexico_City')
+                ->toIso8601String(),
         ];
     }
 
