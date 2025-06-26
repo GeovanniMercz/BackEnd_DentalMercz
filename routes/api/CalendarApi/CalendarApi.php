@@ -41,14 +41,19 @@ Route::middleware('auth:api')->post('/appointment/store', function (Request $req
         'summary'     => $appointment->summary,
         'description' => $appointment->description,
         'start' => [
-            'dateTime' => Carbon::parse($appointment->start_time)->toRfc3339String(),
+            'dateTime' => Carbon::parse($appointment->start_time)
+                ->setTimezone('America/Mexico_City') // 👈 fuerza la zona
+                ->toRfc3339String(),
             'timeZone' => 'America/Mexico_City',
         ],
         'end' => [
-            'dateTime' => Carbon::parse($appointment->end_time)->toRfc3339String(),
+            'dateTime' => Carbon::parse($appointment->end_time)
+                ->setTimezone('America/Mexico_City') // 👈 fuerza la zona
+                ->toRfc3339String(),
             'timeZone' => 'America/Mexico_City',
         ],
     ]);
+
 
     $calendarService->events->insert('primary', $event);
 
