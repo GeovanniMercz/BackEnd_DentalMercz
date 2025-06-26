@@ -34,7 +34,13 @@ Route::get('/api/auth/google/callback', function () {
         abort(403, 'Usuario no autenticado');
     }
 
-    $user->google_token = $googleUser->token;
+    $user->google_token = json_encode([
+        'access_token' => $googleUser->token,
+        'expires_in' => $googleUser->expiresIn,
+        'created' => time(),
+        'scope' => 'https://www.googleapis.com/auth/calendar',
+        'token_type' => 'Bearer',
+    ]);
     $user->google_refresh_token = $googleUser->refreshToken;
     $user->google_token_expires_at = now()->addSeconds($googleUser->expiresIn);
     $user->save();
@@ -157,3 +163,49 @@ Route::post('/google/calendar/store', function (Request $request) {
     return redirect('/google/calendar')->with('success', 'Evento creado con éxito.');
 });
 
+Route::get('/doctor/calendar', function () {
+    // Trae primer doctor activo (mejor pon lógica para el doctor correcto)
+    $doctor = User::where('is_doctor', true)->first();
+
+    if (!$doctor || !$doctor->google_token) {
+        return response()->json(['error' => 'El doctor no tiene token de Google Calendar'], 422);
+    }
+
+    $token = json_decode($doctor->google_token, true);
+
+    $client = new Google_Client();
+    $client->setAccessToken($token);
+
+    // Refresca token si está expirado
+    if ($client->isAccessTokenExpired()) {
+        if ($doctor->google_refresh_token) {
+            $client->fetchAccessTokenWithRefreshToken($doctor->google_refresh_token);
+            $doctor->google_token = json_encode($client->getAccessToken());
+            $doctor->google_token_expires_at = now()->addSeconds($client->getAccessToken()['expires_in']);
+            $doctor->save();
+        } else {
+            return response()->json(['error' => 'Token expirado y no hay refresh token'], 401);
+        }
+    }
+
+    $service = new Google_Service_Calendar($client);
+    $events = $service->events->listEvents('primary', [
+        'maxResults' => 50,
+        'singleEvents' => true,
+        'orderBy' => 'startTime',
+        'timeMin' => now()->toRfc3339String(),
+    ]);
+
+    $eventList = [];
+    foreach ($events->getItems() as $event) {
+        $eventList[] = [
+            'id' => $event->getId(),
+            'summary' => $event->getSummary(),
+            'description' => $event->getDescription(),
+            'start' => $event->getStart()->getDateTime() ?? $event->getStart()->getDate(),
+            'end' => $event->getEnd()->getDateTime() ?? $event->getEnd()->getDate(),
+        ];
+    }
+
+    return response()->json($eventList);
+});
