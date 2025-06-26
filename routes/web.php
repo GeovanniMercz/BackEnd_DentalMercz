@@ -18,15 +18,19 @@ Route::get('/', function () {
 Route::get('/api/auth/google', function () {
     return Socialite::driver('google')
         ->scopes(['https://www.googleapis.com/auth/calendar'])
+        ->with(['access_type' => 'offline', 'prompt' => 'consent'])
         ->redirect();
 });
 
 
-Route::get('/api/auth/google/callback', function () {
-    $googleUser = Socialite::driver('google')->stateless()->user();
 
-    // 🔧 SIMULA LOGIN TEMPORAL PARA PRUEBA
-    Auth::loginUsingId(1); // Solo si aún no tienes login real
+
+
+Route::get('/api/auth/google/callback', function () {
+    $googleUser = Socialite::driver('google')->user(); // SIN stateless()
+
+    // Simula login si estás en pruebas
+    Auth::loginUsingId(1);
 
     $user = Auth::user();
 
@@ -34,6 +38,7 @@ Route::get('/api/auth/google/callback', function () {
         abort(403, 'Usuario no autenticado');
     }
 
+    // Guardar el access y refresh token
     $user->google_token = json_encode([
         'access_token' => $googleUser->token,
         'expires_in' => $googleUser->expiresIn,
@@ -41,14 +46,14 @@ Route::get('/api/auth/google/callback', function () {
         'scope' => 'https://www.googleapis.com/auth/calendar',
         'token_type' => 'Bearer',
     ]);
-    $user->google_refresh_token = $googleUser->refreshToken;
+
+    $user->google_refresh_token = $googleUser->refreshToken; // ✅ Este es el que necesitas
     $user->google_token_expires_at = now()->addSeconds($googleUser->expiresIn);
     $user->save();
 
     Session::put('google_token', $googleUser->token);
 
     return redirect('/google/calendar')->with('success', 'Google Calendar vinculado correctamente.');
-
 });
 
 
@@ -130,18 +135,32 @@ Route::get('/google/calendar/create', function () {
 //Creation of event in calendar
 
 Route::post('/google/calendar/store', function (Request $request) {
-    $token = Session::get('google_token');
-
-    if (!$token) {
+    $user = Auth::user(); // asegúrate de que está logueado
+    if (!$user || !$user->google_token) {
         return redirect('/api/auth/google');
     }
 
+    $token = json_decode($user->google_token, true);
+
     $client = new \Google_Client();
+    $client->setClientId(config('services.google.client_id')); // <-- asegúrate que están en tu archivo .env
+    $client->setClientSecret(config('services.google.client_secret'));
     $client->setAccessToken($token);
+
+    // 🔁 Refrescar token si está expirado
+    if ($client->isAccessTokenExpired()) {
+        if ($user->google_refresh_token) {
+            $client->fetchAccessTokenWithRefreshToken($user->google_refresh_token);
+            $user->google_token = json_encode($client->getAccessToken());
+            $user->google_token_expires_at = now()->addSeconds($client->getAccessToken()['expires_in']);
+            $user->save();
+        } else {
+            return redirect('/api/auth/google'); // si no tiene refresh_token, pide login
+        }
+    }
 
     $calendarService = new \Google_Service_Calendar($client);
 
-    // ✅ Asegurarse que la hora no se convierta a UTC (NO usar toRfc3339String aquí)
     $start = Carbon::parse($request->start)
         ->setTimezone('America/Mexico_City')
         ->format('Y-m-d\TH:i:s');
