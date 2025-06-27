@@ -74,38 +74,33 @@ Route::get('/google/calendar', function () {
 });
 
 //Creation of voucher of appointment
-Route::get('/google/calendar/comprobante/{eventId}', function ($eventId) {
-    $token = Session::get('google_token');
+// Ruta para descargar comprobante por ID de cita
+Route::middleware('auth:api')->get('/api/appointments/comprobante/{appointmentId}', function ($appointmentId, Request $request) {
+    $user = $request->user();
 
-    if (!$token) {
-        return redirect('/api/auth/google');
+    // Buscar cita en base de datos
+    $appointment = \App\Models\Appointment::where('id', $appointmentId)
+        ->where('user_id', $user->id)
+        ->first();
+
+    if (!$appointment) {
+        return response()->json(['error' => 'Cita no encontrada o no autorizada'], 404);
     }
 
-    $client = new \Google_Client();
-    $client->setAccessToken($token);
-
-    $calendar = new \Google_Service_Calendar($client);
-    $event = $calendar->events->get('primary', $eventId);
-
-    $summary     = $event->getSummary();
-    $description = $event->getDescription();
-    $start       = $event->getStart()->getDateTime();
-    $end         = $event->getEnd()->getDateTime();
-
-    $comprobante = "***** COMPROBANTE DE EVENTO *****\n";
-    $comprobante .= "Título: $summary\n";
-    $comprobante .= "Descripción: $description\n";
-    $comprobante .= "Inicio: $start\n";
-    $comprobante .= "Fin: $end\n";
+    // Crear contenido del comprobante con info de la cita
+    $comprobante = "***** COMPROBANTE DE CITA *****\n";
+    $comprobante .= "Título: {$appointment->summary}\n";
+    $comprobante .= "Descripción: {$appointment->description}\n";
+    $comprobante .= "Inicio: {$appointment->start_time}\n";
+    $comprobante .= "Fin: {$appointment->end_time}\n";
     $comprobante .= "Fecha de emisión: " . now() . "\n";
     $comprobante .= "*******************************\n";
 
-    $filename = str_replace(' ', '_', $summary) . "_comprobante.txt";
+    $filename = "comprobante_cita_{$appointmentId}.txt";
 
-    return Response::make($comprobante, 200, [
-        'Content-Type' => 'text/plain',
-        'Content-Disposition' => "attachment; filename=\"$filename\""
-    ]);
+    return response($comprobante, 200)
+        ->header('Content-Type', 'text/plain')
+        ->header('Content-Disposition', "attachment; filename=\"$filename\"");
 });
 
 //Form to create a new Appointment
