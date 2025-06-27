@@ -6,7 +6,7 @@ app.use(express.json());
 
 let clientGlobal = null;
 
-// Crear sesión
+
 venom
     .create({ session: 'consultorio' })
     .then((client) => {

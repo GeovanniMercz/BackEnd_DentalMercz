@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Appointment;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\Log; // Agregar para logging
+use Illuminate\Support\Facades\Log;
 
 class SendWhatsAppReminders extends Command
 {
@@ -16,13 +16,15 @@ class SendWhatsAppReminders extends Command
     {
         $now = Carbon::now();
 
-        // TEMPORAL PARA PRUEBAS: busca citas desde 10 minutos antes hasta 24 horas después
-        // Cambia luego para usar el rango de 2 horas antes real.
         $start = $now->copy()->subMinutes(10);
         $end = $now->copy()->addHours(24);
 
+        // Aquí agregas el filtro para que solo busque citas que no tengan whatsapp_sent = true
         $appointments = Appointment::whereBetween('start_time', [$start, $end])
-            ->with('user') // carga el usuario para obtener teléfono
+            ->where(function ($query) {
+                $query->whereNull('whatsapp_sent')->orWhere('whatsapp_sent', false);
+            })
+            ->with('user')
             ->get();
 
         Log::info("Citas encontradas para enviar WhatsApp: " . $appointments->count());
@@ -46,9 +48,6 @@ class SendWhatsAppReminders extends Command
 
             $message = "Hola $name, recuerda que tienes una cita programada el $dateTime. ¡Nos vemos pronto!";
 
-            // Aquí llamas a la función para enviar WhatsApp (por ejemplo, a tu API de Node.js)
-            // Puedes usar un cliente HTTP o ejecutar un proceso para llamar a Venom
-
             try {
                 $client = new \GuzzleHttp\Client();
                 $response = $client->post('http://localhost:3000/send-message', [
@@ -61,6 +60,11 @@ class SendWhatsAppReminders extends Command
                 if ($response->getStatusCode() === 200) {
                     $this->info("Mensaje enviado a $name ($phone)");
                     Log::info("Mensaje enviado a $name ($phone)");
+
+                    // MARCAR como enviado para evitar enviar de nuevo
+                    $appointment->whatsapp_sent = true;
+                    $appointment->save();
+
                 } else {
                     $this->error("Error enviando mensaje a $phone");
                     Log::error("Error enviando mensaje a $phone. Código HTTP: " . $response->getStatusCode());
