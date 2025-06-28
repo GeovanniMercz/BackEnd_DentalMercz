@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\Response;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -24,6 +25,9 @@ Route::get('/api/auth/google', function () {
 
 Route::get('/api/auth/google/callback', function () {
     $googleUser = Socialite::driver('google')->user(); // SIN stateless()
+
+    // Simula login si estás en pruebas
+    Auth::loginUsingId(1);
 
     $user = Auth::user();
 
@@ -49,7 +53,28 @@ Route::get('/api/auth/google/callback', function () {
     return redirect('/google/calendar')->with('success', 'Google Calendar vinculado correctamente.');
 });
 
-// Route to downland a specific voucher
+//Visualiza eventos de calendario
+Route::get('/google/calendar', function () {
+    $token = Session::get('google_token');
+
+    $client = new \Google_Client();
+    $client->setAccessToken($token);
+
+    $calendar = new \Google_Service_Calendar($client);
+    $events = $calendar->events->listEvents('primary');
+
+    echo "<h2>Eventos:</h2>";
+    foreach ($events->getItems() as $event) {
+        $summary = $event->getSummary();
+        $eventId = $event->getId();
+
+        echo "$summary ";
+        echo "<a href='/google/calendar/comprobante/{$eventId}'>[Descargar comprobante]</a><br>";
+    }
+});
+
+//Creation of voucher of appointment
+// Ruta para descargar comprobante por ID de cita
 Route::middleware('auth:api')->get('/api/appointments/comprobante/{appointmentId}', function ($appointmentId, Request $request) {
     $user = $request->user();
 
@@ -78,7 +103,60 @@ Route::middleware('auth:api')->get('/api/appointments/comprobante/{appointmentId
         ->header('Content-Disposition', "attachment; filename=\"$filename\"");
 });
 
-//Get the appointments in google Calendar
+//Creation of event in calendar
+Route::post('/google/calendar/store', function (Request $request) {
+    $user = Auth::user(); // asegúrate de que está logueado
+    if (!$user || !$user->google_token) {
+        return redirect('/api/auth/google');
+    }
+
+    $token = json_decode($user->google_token, true);
+
+    $client = new \Google_Client();
+    $client->setClientId(config('services.google.client_id')); // <-- asegúrate que están en tu archivo .env
+    $client->setClientSecret(config('services.google.client_secret'));
+    $client->setAccessToken($token);
+
+    // 🔁 Refrescar token si está expirado
+    if ($client->isAccessTokenExpired()) {
+        if ($user->google_refresh_token) {
+            $client->fetchAccessTokenWithRefreshToken($user->google_refresh_token);
+            $user->google_token = json_encode($client->getAccessToken());
+            $user->google_token_expires_at = now()->addSeconds($client->getAccessToken()['expires_in']);
+            $user->save();
+        } else {
+            return redirect('/api/auth/google'); // si no tiene refresh_token, pide login
+        }
+    }
+
+    $calendarService = new \Google_Service_Calendar($client);
+
+    $start = Carbon::parse($request->start)
+        ->setTimezone('America/Mexico_City')
+        ->format('Y-m-d\TH:i:s');
+
+    $end = Carbon::parse($request->end)
+        ->setTimezone('America/Mexico_City')
+        ->format('Y-m-d\TH:i:s');
+
+    $event = new \Google_Service_Calendar_Event([
+        'summary'     => $request->summary,
+        'description' => $request->description,
+        'start' => [
+            'dateTime' => $start,
+            'timeZone' => 'America/Mexico_City',
+        ],
+        'end' => [
+            'dateTime' => $end,
+            'timeZone' => 'America/Mexico_City',
+        ],
+    ]);
+
+    $calendarService->events->insert('primary', $event);
+
+    return redirect('/google/calendar')->with('success', 'Evento creado con éxito.');
+});
+
 Route::get('/doctor/calendar', function () {
     // Trae primer doctor activo (mejor pon lógica para el doctor correcto)
     $doctor = User::where('is_doctor', true)->first();
