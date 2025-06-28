@@ -1,0 +1,25 @@
+# Archivos y carpetas generadas por Puppeteer/Venom-bot
+Tokens/
+Cookies
+Changes
+QuotaManager*
+DevToolsActivePort
+LOG*
+MANIFEST-*
+*.ldb
+*.data
+*.key
+*.auth
+*.session
+*.png
+*.txt
+*.log
+index
+the-real-index
+data_*
+
+# Archivos de sesión generados con nombres aleatorios
+*_0
+
+# Ignorar archivos sin versión
+Unversioned Files
