@@ -103,24 +103,6 @@ Route::middleware('auth:api')->get('/api/appointments/comprobante/{appointmentId
         ->header('Content-Disposition', "attachment; filename=\"$filename\"");
 });
 
-//Form to create a new Appointment
-Route::get('/google/calendar/create', function () {
-    if (!Auth::check()) {
-        return redirect('/login'); // o donde manejes login
-    }
-
-    return '
-        <form method="POST" action="/appointment/store">
-            ' . csrf_field() . '
-            <label>Título:</label><input name="summary"><br>
-            <label>Descripción:</label><input name="description"><br>
-            <label>Inicio:</label><input type="datetime-local" name="start"><br>
-            <label>Fin:</label><input type="datetime-local" name="end"><br>
-            <button type="submit">Agendar cita</button>
-        </form>
-    ';
-});
-
 //Creation of event in calendar
 Route::post('/google/calendar/store', function (Request $request) {
     $user = Auth::user(); // asegúrate de que está logueado
