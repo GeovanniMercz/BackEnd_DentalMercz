@@ -5,24 +5,33 @@ const app = express();
 app.use(express.json());
 
 let clientGlobal = null;
-
+let botReady = false; // NUEVO
 
 venom
     .create({ session: 'consultorio' })
     .then((client) => {
         clientGlobal = client;
+        botReady = true; // MARCA QUE ESTÁ LISTO
         console.log('Bot de WhatsApp iniciado ✅');
     })
     .catch((error) => {
         console.error('Error al iniciar Venom:', error);
     });
 
-// Ruta POST para recibir mensajes desde Laravel
+// Verificar si el bot está listo
+app.get('/status', (req, res) => {
+    if (botReady) {
+        return res.send('ready');
+    }
+    res.status(503).send('not ready');
+});
+
+// Enviar mensaje
 app.post('/send-message', async (req, res) => {
     const { phone, message } = req.body;
 
-    if (!clientGlobal) {
-        return res.status(500).send('Bot no iniciado');
+    if (!clientGlobal || !botReady) {
+        return res.status(503).send('Bot no está listo para enviar mensajes');
     }
 
     try {
@@ -35,7 +44,6 @@ app.post('/send-message', async (req, res) => {
     }
 });
 
-// Iniciar servidor en puerto 3000
 app.listen(3000, () => {
     console.log('Servidor escuchando en http://localhost:3000');
 });

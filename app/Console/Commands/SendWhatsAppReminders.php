@@ -15,7 +15,6 @@ class SendWhatsAppReminders extends Command
     public function handle()
     {
         $now = Carbon::now();
-
         $start = $now->copy()->subMinutes(10);
         $end = $now->copy()->addHours(24);
 
