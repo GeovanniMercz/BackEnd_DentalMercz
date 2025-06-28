@@ -8,7 +8,7 @@ let clientGlobal = null;
 let botReady = false; // NUEVO
 
 venom
-    .create({ session: 'consultorio' })
+    .create({ session: 'consultorio'})
     .then((client) => {
         clientGlobal = client;
         botReady = true; // MARCA QUE ESTÁ LISTO
