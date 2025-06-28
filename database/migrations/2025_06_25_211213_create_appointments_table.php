@@ -19,6 +19,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->dateTime('start_time');
             $table->dateTime('end_time');
+            $table->boolean('whatsapp_sent')->nullable()->default(false);
             $table->string('google_event_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
