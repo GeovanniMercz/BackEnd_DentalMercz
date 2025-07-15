@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder
         $this->call(ClientSecretSeeder::class);
         $this->call(AppointmentPermissionSeeder::class);
         $this->call(RolesAndPermissionsSeeder::class);
-
+//aa
 
 
     }

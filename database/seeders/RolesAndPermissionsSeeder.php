@@ -58,3 +58,4 @@ class RolesAndPermissionsSeeder extends Seeder
         $this->command->info('✅ Roles, permisos y usuario admin creados correctamente.');
     }
 }
+//a
