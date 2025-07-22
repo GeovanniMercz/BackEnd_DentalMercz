@@ -18,7 +18,6 @@ class SendWhatsAppReminders extends Command
         $start = $now->copy()->subMinutes(10);
         $end = $now->copy()->addHours(24);
 
-        // Aquí agregas el filtro para que solo busque citas que no tengan whatsapp_sent = true
         $appointments = Appointment::whereBetween('start_time', [$start, $end])
             ->where(function ($query) {
                 $query->whereNull('whatsapp_sent')->orWhere('whatsapp_sent', false);
